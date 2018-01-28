@@ -6,14 +6,13 @@ import Text.Parsec.Language (emptyDef)
 import qualified Text.Parsec.Token as Tok
 
 lexer :: Tok.TokenParser ()
-lexer = Tok.makeTokenParser style
-    where
-        ops = ["+", "*", "-", ";"]
-        names = ["def", "extern"]
-        style = emptyDef { Tok.commentLine = "#"
-                         , Tok.reservedOpNames = ops
-                         , Tok.reservedNames = names
-                         }
+lexer = let ops = ["+", "*", "-", ";"]
+            names = ["def", "extern"]
+            style = emptyDef { Tok.commentLine = "#"
+                             , Tok.reservedOpNames = ops
+                             , Tok.reservedNames = names
+                             }
+        in Tok.makeTokenParser style
 
 integer :: Parser Integer
 integer = Tok.integer lexer

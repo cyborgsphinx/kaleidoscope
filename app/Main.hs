@@ -1,20 +1,45 @@
 module Main where
 
 import Parser
+import Codegen
+import Emit
 
 import Control.Monad.Trans
+
+import System.IO
+import System.Environment
 import System.Console.Haskeline
 
-process :: String -> IO ()
-process line = case parseToplevel line of
-                 Left err -> print err
-                 Right ex -> mapM_ print ex
+initModule :: AST.Module
+initModule = emptyModule "jit"
+
+process :: AST.Module -> String -> IO (Maybe AST.Module)
+process modo source = do
+    let res = parseToplevel source
+    case res of
+      Left err -> print err >> return Nothing
+      Right ex -> do
+          ast <- codegen modo ex
+          return $ Just ast
+
+processFile :: String -> IO (Maybe AST.Module)
+processFile fname = readFile fname >>= process initModule
+
+repl :: IO ()
+repl = runInputT defaultSettings (loop initModule)
+    where loop mod = do
+        minput <- getInputLine "ε> "
+        case minput of
+          Nothing -> outputStrLn "Done."
+          Just input -> do
+              modn <- liftIO $ process mod input
+              case modn of
+                Just modn -> loop modn
+                Nothing -> loop mod
 
 main :: IO ()
-main = runInputT defaultSettings loop
-    where
-        loop = do
-            minput <- getInputLine "ε> "
-            case minput of
-              Nothing -> outputStrLn "Done."
-              Just input -> liftIO (process input) >> loop
+main = do
+    args <- getArgs
+    case args of
+      [] -> repl
+      [fname] -> processFile fname >> return ()
