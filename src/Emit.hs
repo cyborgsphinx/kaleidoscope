@@ -2,6 +2,8 @@
 
 module Emit where
 
+import Data.ByteString.Internal
+import Data.ByteString.Short
 import LLVM.Module
 import LLVM.Context
 
@@ -19,9 +21,12 @@ import qualified Data.Map as Map
 import Codegen
 import qualified Syntax as S
 
+conv :: String -> ShortByteString
+conv = pack . (map c2w)
+
 codegenTop :: S.Expr -> LLVM ()
 codegenTop (S.Function name args body) = do
-    define double name fnargs bls
+    define double (conv name) fnargs bls
         where fnargs = toSig args
               bls = createBlocks $ execCodegen $ do
                   entry <- addBlock entryBlockName
@@ -37,12 +42,12 @@ codegenTop (S.Extern name args) = do
 codegenTop exp = do
     define double "main" [] blks
         where blks = createBocks $ execCodegen $ do
-            entry <- addBlock entryBlockName
-            setBlock entry
-            cgen exp >>= ret
+                   entry <- addBlock entryBlockName
+                   setBlock entry
+                   cgen exp >>= ret
 
 toSig :: [String] -> [(AST.Type, AST.Name)]
-toSig = map (\x -> (double, AST.Name s))
+toSig = map (\s -> (double, AST.Name (conv s)))
 
 cgen :: S.Expr -> Codegen AST.Operand
 cgen (S.Float n) = return $ cons $ C.Float (F.Double n)
@@ -50,7 +55,7 @@ cgen (S.Var x) = getvar x >>= load
 cgen (S.Call fn args) = do
     largs <- mapM cgen args
     call (externf (AST.Name fn)) largs
-cgen (S.BinaryOp op a b) = do
+cgen (S.BinOp op a b) = do
     case Map.lookup op binops of
       Just f -> do
           ca <- cgen a
